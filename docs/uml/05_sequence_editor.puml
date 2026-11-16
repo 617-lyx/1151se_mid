@@ -1,0 +1,33 @@
+@startuml 05_sequence_editor
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 編輯審查稿件 - 循序圖 (Sequence Diagram)
+autonumber
+actor 編輯
+participant "App\n(畫面)" as App
+participant ManuscriptService as S
+participant Database as DB
+database "SQLite\n(localStorage)" as LS
+
+編輯 -> App : 登入
+App -> S : listPending()
+S -> DB : SELECT 狀態 = 審查中
+App --> 編輯 : 待審查清單（作者、類別、標題）
+編輯 -> App : 點「查看稿件」
+App -> S : getById(id)
+App --> 編輯 : 稿件內容
+alt 選擇通過
+  編輯 -> App : 按「選擇通過」並確認
+  App -> S : approve(editorId, id)
+  S -> DB : UPDATE status = 已通過
+  S -> DB : INSERT review_logs (通過)
+else 退回稿件
+  編輯 -> App : 按「退回稿件」並確認
+  App -> S : reject(editorId, id)
+  S -> DB : UPDATE status = 編輯中
+  S -> DB : INSERT review_logs (退回)
+end
+DB -> LS : save()
+App --> 編輯 : 回到待審查清單
+@enduml

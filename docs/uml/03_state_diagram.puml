@@ -1,0 +1,16 @@
+@startuml 03_state_diagram
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 稿件審查狀態 - 狀態圖 (State Diagram)
+[*] --> 編輯中 : 作者新增投稿
+編輯中 --> 編輯中 : 作者編輯投稿
+編輯中 --> [*] : 作者刪除稿件
+編輯中 --> 審查中 : 作者送出投稿
+審查中 --> 已通過 : 編輯選擇通過
+審查中 --> 編輯中 : 編輯退回稿件
+已通過 --> [*]
+編輯中 : 作者可編輯、刪除、送出
+審查中 : 作者不可修改\n編輯可查看、通過、退回
+已通過 : 審查完成（唯讀）
+@enduml

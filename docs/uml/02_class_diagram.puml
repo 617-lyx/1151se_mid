@@ -1,0 +1,98 @@
+@startuml 02_class_diagram
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 投稿審查系統 - 類別圖 (Class Diagram)
+skinparam classAttributeIconSize 0
+
+enum Role {
+  AUTHOR = "author"
+  EDITOR = "editor"
+}
+enum Status {
+  EDITING = "編輯中"
+  REVIEWING = "審查中"
+  APPROVED = "已通過"
+}
+
+class User <<entity>> {
+  - id : int
+  - username : string
+  - password : string
+  - name : string
+  - role : Role
+}
+class Category <<entity>> {
+  - id : int
+  - name : string
+}
+class Manuscript <<entity>> {
+  - id : int
+  - authorId : int
+  - categoryId : int
+  - title : string
+  - content : string
+  - status : Status
+  - createdAt : datetime
+  - updatedAt : datetime
+}
+class ReviewLog <<entity>> {
+  - id : int
+  - manuscriptId : int
+  - userId : int
+  - action : string
+  - fromStatus : Status
+  - toStatus : Status
+  - createdAt : datetime
+}
+
+class Database {
+  - SQL
+  - db
+  + init() : void
+  + save() : void
+  + reset() : void
+  + query(sql, params) : Object[]
+  + get(sql, params) : Object
+  + run(sql, params) : int
+}
+class AuthService {
+  - currentUser : User
+  + login(username, password) : User
+  + logout() : void
+  + restore() : User
+}
+class ManuscriptService {
+  + getCategories() : Category[]
+  + listByAuthor(authorId) : Manuscript[]
+  + create(authorId, data) : int
+  + update(authorId, id, data) : void
+  + delete(authorId, id) : void
+  + submit(authorId, id) : void
+  + listPending() : Manuscript[]
+  + getById(id) : Manuscript
+  + approve(editorId, id) : void
+  + reject(editorId, id) : void
+  + getLogs(id) : ReviewLog[]
+  - transition(m, userId, action, from, to) : void
+}
+class "App (畫面/路由)" as App {
+  + router() : void
+  + renderLogin()
+  + renderAuthorList()
+  + renderEditForm(id)
+  + renderPendingList()
+  + renderView(id)
+}
+
+App --> AuthService
+App --> ManuscriptService
+AuthService --> Database
+ManuscriptService --> Database
+User "1" -- "0..*" Manuscript : 撰寫 >
+Category "1" -- "0..*" Manuscript : 分類 >
+Manuscript "1" *-- "0..*" ReviewLog : 紀錄 >
+User "1" -- "0..*" ReviewLog : 操作 >
+User ..> Role
+Manuscript ..> Status
+@enduml

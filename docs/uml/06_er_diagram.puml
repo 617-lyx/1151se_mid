@@ -1,0 +1,46 @@
+@startuml 06_er_diagram
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 投稿審查系統 - 資料庫 ER 圖
+hide circle
+skinparam linetype ortho
+entity users {
+  * id : INTEGER <<PK>>
+  --
+  * username : TEXT <<UNIQUE>>
+  * password : TEXT
+  * name : TEXT
+  * role : TEXT (author / editor)
+}
+entity categories {
+  * id : INTEGER <<PK>>
+  --
+  * name : TEXT <<UNIQUE>>
+}
+entity manuscripts {
+  * id : INTEGER <<PK>>
+  --
+  * author_id : INTEGER <<FK>>
+  * category_id : INTEGER <<FK>>
+  * title : TEXT
+  * content : TEXT
+  * status : TEXT (編輯中/審查中/已通過)
+  * created_at : TEXT
+  * updated_at : TEXT
+}
+entity review_logs {
+  * id : INTEGER <<PK>>
+  --
+  * manuscript_id : INTEGER <<FK>>
+  * user_id : INTEGER <<FK>>
+  * action : TEXT
+  * from_status : TEXT
+  * to_status : TEXT
+  * created_at : TEXT
+}
+users ||--o{ manuscripts : 撰寫
+categories ||--o{ manuscripts : 分類
+manuscripts ||--o{ review_logs : 紀錄
+users ||--o{ review_logs : 操作
+@enduml

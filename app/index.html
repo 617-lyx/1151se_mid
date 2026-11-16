@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>投稿審查系統</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" id="brand">投稿審查系統</div>
+    <div class="userbox" id="userbox"></div>
+  </header>
+
+  <main id="app" class="container">
+    <p class="muted">載入資料庫中…</p>
+  </main>
+
+  <!-- 確認對話框 -->
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modal-title"></h3>
+      <p id="modal-body"></p>
+      <div class="actions">
+        <button class="btn" id="modal-cancel">取消</button>
+        <button class="btn primary" id="modal-ok">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- sql.js：瀏覽器內的 SQLite（純 JS 版本，可直接以 file:// 開啟） -->
+  <script src="js/lib/sql-asm.js"></script>
+  <script src="js/schema.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

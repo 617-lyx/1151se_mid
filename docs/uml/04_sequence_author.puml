@@ -1,0 +1,35 @@
+@startuml 04_sequence_author
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 作者新增並送出投稿 - 循序圖 (Sequence Diagram)
+autonumber
+actor 作者
+participant "App\n(畫面)" as App
+participant ManuscriptService as S
+participant Database as DB
+database "SQLite\n(localStorage)" as LS
+
+作者 -> App : 點「新增投稿」，填寫類別、標題、內容
+作者 -> App : 按「儲存」
+App -> S : create(authorId, data)
+S -> S : validate(data)
+S -> DB : run(INSERT manuscripts, 狀態=編輯中)
+DB -> LS : save()
+S --> App : 稿件 id
+App --> 作者 : 顯示稿件清單（編輯中）
+
+作者 -> App : 按「送出投稿」並確認
+App -> S : submit(authorId, id)
+S -> DB : get 稿件
+S -> S : 檢查擁有者與狀態 == 編輯中
+alt 狀態正確
+  S -> DB : UPDATE status = 審查中
+  S -> DB : INSERT review_logs (送出投稿)
+  DB -> LS : save()
+  App --> 作者 : 「已送出投稿」
+else 狀態不符
+  S --> App : Error
+  App --> 作者 : 顯示錯誤訊息
+end
+@enduml
