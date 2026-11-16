@@ -25,6 +25,17 @@ async def lifespan(app: FastAPI):
 	print("🛑 Disconnected from DB")
 
 
+# diagnose：連線池連不上時，直接連一次資料庫，取得真正的錯誤原因（密碼錯、資料庫不存在…）
+async def diagnose():
+	import psycopg
+	try:
+		conn = await psycopg.AsyncConnection.connect(DB_URL, connect_timeout=5)
+		await conn.close()
+		return None
+	except Exception as e:
+		return str(e).strip()
+
+
 # getDB：每個請求從連線池借一條連線，用完自動歸還
 async def getDB(request: Request):
 	async with request.app.state.pool.connection() as conn:

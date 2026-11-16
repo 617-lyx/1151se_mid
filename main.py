@@ -5,7 +5,7 @@ from starlette.exceptions import HTTPException  # 包含 FastAPI 的 HTTPExcepti
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from db import lifespan
+from db import lifespan, diagnose
 from auth import chkLogin
 from common import templates
 
@@ -51,9 +51,14 @@ async def httpError(request: Request, exc: HTTPException):
 # 其他沒處理到的錯誤（例如資料庫連不上、資料表不存在）：顯示錯誤原因，方便除錯
 @app.exception_handler(Exception)
 async def serverError(request: Request, exc: Exception):
-	print("❌ 伺服器錯誤：", type(exc).__name__, exc)
+	detail = f"{type(exc).__name__}：{exc}"
+	if type(exc).__name__ == "PoolTimeout":  # 連線池拿不到連線 → 查出真正原因
+		reason = await diagnose()
+		if reason:
+			detail = "無法連線到資料庫：" + reason
+	print("❌ 伺服器錯誤：", detail)
 	return templates.TemplateResponse(name="error.html", request=request,
-		context={"code": 500, "detail": f"{type(exc).__name__}：{exc}"}, status_code=500)
+		context={"code": 500, "detail": detail}, status_code=500)
 
 
 # 靜態網頁（登入、註冊、CSS）放在 www 資料夾，網址是 /w/檔名
