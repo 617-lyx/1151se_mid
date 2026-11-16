@@ -5,90 +5,118 @@ skinparam backgroundColor white
 title 投稿審查系統 - 類別圖 (Class Diagram)
 skinparam classAttributeIconSize 0
 
-enum Role {
-  AUTHOR = "author"
-  EDITOR = "editor"
-}
-enum Status {
-  EDITING = "編輯中"
-  REVIEWING = "審查中"
-  APPROVED = "已通過"
-}
-
-class User <<entity>> {
-  - id : int
-  - username : string
-  - password : string
-  - name : string
-  - role : Role
-}
-class Category <<entity>> {
-  - id : int
-  - name : string
-}
-class Manuscript <<entity>> {
-  - id : int
-  - authorId : int
-  - categoryId : int
-  - title : string
-  - content : string
-  - status : Status
-  - createdAt : datetime
-  - updatedAt : datetime
-}
-class ReviewLog <<entity>> {
-  - id : int
-  - manuscriptId : int
-  - userId : int
-  - action : string
-  - fromStatus : Status
-  - toStatus : Status
-  - createdAt : datetime
+package "前端 (public/js)" {
+  class "app.js (畫面/路由)" as App {
+    - currentUser : User
+    + router()
+    + renderLogin()
+    + renderAuthorList()
+    + renderEditForm(id)
+    + renderPendingList()
+    + renderView(id)
+  }
+  class "api.js" as Api {
+    + login(username, password)
+    + logout()
+    + myList() / create() / update()
+    + remove() / submit()
+    + pending() / approve() / reject()
+    + get(id)
+  }
 }
 
-class Database {
-  - SQL
-  - db
-  + init() : void
-  + save() : void
-  + reset() : void
-  + query(sql, params) : Object[]
-  + get(sql, params) : Object
-  + run(sql, params) : int
-}
-class AuthService {
-  - currentUser : User
-  + login(username, password) : User
-  + logout() : void
-  + restore() : User
-}
-class ManuscriptService {
-  + getCategories() : Category[]
-  + listByAuthor(authorId) : Manuscript[]
-  + create(authorId, data) : int
-  + update(authorId, id, data) : void
-  + delete(authorId, id) : void
-  + submit(authorId, id) : void
-  + listPending() : Manuscript[]
-  + getById(id) : Manuscript
-  + approve(editorId, id) : void
-  + reject(editorId, id) : void
-  + getLogs(id) : ReviewLog[]
-  - transition(m, userId, action, from, to) : void
-}
-class "App (畫面/路由)" as App {
-  + router() : void
-  + renderLogin()
-  + renderAuthorList()
-  + renderEditForm(id)
-  + renderPendingList()
-  + renderView(id)
+package "後端 (server)" {
+  class "server.js (Express 路由)" as Server {
+    + POST /api/login
+    + GET  /api/my/manuscripts
+    + POST /api/my/manuscripts
+    + PUT  /api/my/manuscripts/:id
+    + DELETE /api/my/manuscripts/:id
+    + POST /api/my/manuscripts/:id/submit
+    + GET  /api/reviews
+    + POST /api/reviews/:id/approve
+    + POST /api/reviews/:id/reject
+    + GET  /api/manuscripts/:id
+    - requireRole(role)
+  }
+  class AuthService {
+    + login(username, password) : User
+  }
+  class ManuscriptService {
+    + getCategories() : Category[]
+    + listByAuthor(authorId) : Manuscript[]
+    + create(authorId, data) : int
+    + update(authorId, id, data)
+    + remove(authorId, id)
+    + submit(authorId, id)
+    + listPending() : Manuscript[]
+    + approve(editorId, id)
+    + reject(editorId, id)
+    + getById(id) : Manuscript
+    + getOwned(authorId, id) : Manuscript
+    + getForUser(user, id) : Manuscript
+    - transition(id, userId, action, from, to)
+    - validate(data)
+  }
+  class HttpError {
+    + status : int
+    + message : string
+  }
+  class "db.js (MySQL 連線池)" as Pool {
+    + query(sql, params)
+    + getConnection()
+  }
 }
 
-App --> AuthService
-App --> ManuscriptService
-AuthService --> Database
-ManuscriptService --> Database
+package "資料模型 (MySQL)" {
+  enum Role {
+    author
+    editor
+  }
+  enum Status {
+    編輯中
+    審查中
+    已通過
+  }
+  class User <<entity>> {
+    - id : int
+    - username : string
+    - password : string
+    - name : string
+    - role : Role
+  }
+  class Category <<entity>> {
+    - id : int
+    - name : string
+  }
+  class Manuscript <<entity>> {
+    - id : int
+    - authorId : int
+    - categoryId : int
+    - title : string
+    - content : string
+    - status : Status
+    - createdAt : datetime
+    - updatedAt : datetime
+  }
+  class ReviewLog <<entity>> {
+    - id : int
+    - manuscriptId : int
+    - userId : int
+    - action : string
+    - fromStatus : Status
+    - toStatus : Status
+    - createdAt : datetime
+  }
+}
+
+App --> Api
+Api ..> Server : HTTP / JSON
+Server --> AuthService
+Server --> ManuscriptService
+AuthService --> Pool
+ManuscriptService --> Pool
+ManuscriptService ..> HttpError : throws
 User "1" -- "0..*" Manuscript : 撰寫 >
 Category "1" -- "0..*" Manuscript : 分類 >
 Manuscript "1" *-- "0..*" ReviewLog : 紀錄 >

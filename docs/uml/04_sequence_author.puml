@@ -5,31 +5,38 @@ skinparam backgroundColor white
 title 作者新增並送出投稿 - 循序圖 (Sequence Diagram)
 autonumber
 actor 作者
-participant "App\n(畫面)" as App
+participant "前端\n(app.js / api.js)" as FE
+participant "Express\n(server.js)" as API
 participant ManuscriptService as S
-participant Database as DB
-database "SQLite\n(localStorage)" as LS
+database MySQL as DB
 
-作者 -> App : 點「新增投稿」，填寫類別、標題、內容
-作者 -> App : 按「儲存」
-App -> S : create(authorId, data)
+作者 -> FE : 點「新增投稿」，填寫類別、標題、內容
+作者 -> FE : 按「儲存」
+FE -> API : POST /api/my/manuscripts
+API -> API : requireRole(author)
+API -> S : create(authorId, data)
 S -> S : validate(data)
-S -> DB : run(INSERT manuscripts, 狀態=編輯中)
-DB -> LS : save()
-S --> App : 稿件 id
-App --> 作者 : 顯示稿件清單（編輯中）
+S -> DB : INSERT manuscripts (狀態=編輯中)
+DB --> S : insertId
+S --> API : id
+API --> FE : 201 { id }
+FE --> 作者 : 顯示稿件清單（編輯中）
 
-作者 -> App : 按「送出投稿」並確認
-App -> S : submit(authorId, id)
-S -> DB : get 稿件
-S -> S : 檢查擁有者與狀態 == 編輯中
-alt 狀態正確
+作者 -> FE : 按「送出投稿」並確認
+FE -> API : POST /api/my/manuscripts/:id/submit
+API -> S : submit(authorId, id)
+S -> DB : 檢查稿件擁有者
+S -> DB : BEGIN
+S -> DB : SELECT ... FOR UPDATE（鎖定稿件）
+alt 狀態 == 編輯中
   S -> DB : UPDATE status = 審查中
   S -> DB : INSERT review_logs (送出投稿)
-  DB -> LS : save()
-  App --> 作者 : 「已送出投稿」
+  S -> DB : COMMIT
+  API --> FE : 200 OK
+  FE --> 作者 : 「已送出投稿」
 else 狀態不符
-  S --> App : Error
-  App --> 作者 : 顯示錯誤訊息
+  S -> DB : ROLLBACK
+  API --> FE : 409 錯誤訊息
+  FE --> 作者 : 顯示錯誤訊息
 end
 @enduml

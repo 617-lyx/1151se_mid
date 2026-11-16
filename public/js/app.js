@@ -9,7 +9,7 @@
  *   #/editor              編輯：待審查清單
  * ========================================================= */
 
-let database, auth, service;
+let currentUser = null;
 const $app = document.getElementById('app');
 
 /* ---------------- 工具函式 ---------------- */
@@ -36,6 +36,8 @@ function toast(msg, isError = false) {
 function confirmDialog(title, body) {
   return new Promise((resolve) => {
     const modal = document.getElementById('modal');
+    const okBtn = document.getElementById('modal-ok');
+    const cancelBtn = document.getElementById('modal-cancel');
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').textContent = body;
     modal.hidden = false;
@@ -44,22 +46,30 @@ function confirmDialog(title, body) {
       okBtn.onclick = cancelBtn.onclick = null;
       resolve(ok);
     };
-    const okBtn = document.getElementById('modal-ok');
-    const cancelBtn = document.getElementById('modal-cancel');
     okBtn.onclick = () => done(true);
     cancelBtn.onclick = () => done(false);
   });
 }
 
-/** 執行動作並統一處理錯誤訊息 */
-function attempt(fn, successMsg) {
+/** 執行 API 動作並統一處理錯誤訊息；成功回傳 true */
+async function attempt(fn, successMsg) {
   try {
-    fn();
+    await fn();
     if (successMsg) toast(successMsg);
     return true;
   } catch (e) {
-    toast(e.message, true);
+    handleError(e);
     return false;
+  }
+}
+
+function handleError(e) {
+  if (e.status === 401) {
+    currentUser = null;
+    toast('登入已過期，請重新登入', true);
+    go('#/login');
+  } else {
+    toast(e.message, true);
   }
 }
 
@@ -74,33 +84,42 @@ function homeOf(user) {
 
 function renderUserbox() {
   const box = document.getElementById('userbox');
-  const u = auth.currentUser;
+  const u = currentUser;
   if (!u) { box.innerHTML = ''; return; }
   box.innerHTML = `
     <span>${esc(u.name)}</span>
     <span class="role">${u.role === ROLE.EDITOR ? '編輯' : '作者'}</span>
     <button class="btn link" id="logout">登出</button>`;
-  document.getElementById('logout').onclick = () => { auth.logout(); go('#/login'); };
+  document.getElementById('logout').onclick = async () => {
+    await api.logout().catch(() => {});
+    currentUser = null;
+    go('#/login');
+  };
 }
 
 /* ---------------- 路由 ---------------- */
 
-function router() {
+async function router() {
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  const user = auth.currentUser;
+  const user = currentUser;
   renderUserbox();
 
   if (!user) return renderLogin();
 
   const [page, sub, id] = parts;
-  if (page === 'author' && user.role === ROLE.AUTHOR) {
-    if (sub === 'new') return renderEditForm(null);
-    if (sub === 'edit') return renderEditForm(Number(id));
-    return renderAuthorList();
+  try {
+    if (page === 'author' && user.role === ROLE.AUTHOR) {
+      if (sub === 'new') return await renderEditForm(null);
+      if (sub === 'edit') return await renderEditForm(Number(id));
+      return await renderAuthorList();
+    }
+    if (page === 'editor' && user.role === ROLE.EDITOR) return await renderPendingList();
+    if (page === 'view') return await renderView(Number(sub));
+  } catch (e) {
+    handleError(e);
+    if (e.status !== 401) go(homeOf(user));
+    return;
   }
-  if (page === 'editor' && user.role === ROLE.EDITOR) return renderPendingList();
-  if (page === 'view') return renderView(Number(sub));
-
   go(homeOf(user));
 }
 
@@ -121,28 +140,18 @@ function renderLogin() {
         測試帳號（密碼皆為 <code>1234</code>）：<br/>
         作者：<code>author1</code>、<code>author2</code>　編輯：<code>editor1</code>
       </div>
-      <div style="margin-top:16px;text-align:right">
-        <button class="btn small danger" id="reset-db" type="button">重置資料庫</button>
-      </div>
     </div>`;
 
-  document.getElementById('login-form').onsubmit = (e) => {
+  document.getElementById('login-form').onsubmit = async (e) => {
     e.preventDefault();
     try {
-      const user = auth.login(
+      currentUser = await api.login(
         document.getElementById('username').value.trim(),
         document.getElementById('password').value
       );
-      go(homeOf(user));
+      go(homeOf(currentUser));
     } catch (err) {
       document.getElementById('login-error').textContent = err.message;
-    }
-  };
-
-  document.getElementById('reset-db').onclick = async () => {
-    if (await confirmDialog('重置資料庫', '所有資料將清除並還原為預設資料，確定嗎？')) {
-      database.reset();
-      toast('資料庫已重置');
     }
   };
 }
@@ -151,9 +160,8 @@ function renderLogin() {
 
 let authorFilter = '全部';
 
-function renderAuthorList() {
-  const user = auth.currentUser;
-  const all = service.listByAuthor(user.id);
+async function renderAuthorList() {
+  const all = await api.myList();
   const rows = authorFilter === '全部' ? all : all.filter((m) => m.status === authorFilter);
   const count = (s) => all.filter((m) => m.status === s).length;
 
@@ -195,7 +203,7 @@ function renderAuthorList() {
 
   document.getElementById('new-btn').onclick = () => go('#/author/new');
   $app.querySelectorAll('[data-filter]').forEach((b) => {
-    b.onclick = () => { authorFilter = b.dataset.filter; renderAuthorList(); };
+    b.onclick = () => { authorFilter = b.dataset.filter; router(); };
   });
   $app.querySelectorAll('[data-act]').forEach((b) => {
     b.onclick = () => authorAction(b.dataset.act, Number(b.dataset.id));
@@ -203,17 +211,16 @@ function renderAuthorList() {
 }
 
 async function authorAction(act, id) {
-  const uid = auth.currentUser.id;
   if (act === 'view') return go(`#/view/${id}`);
   if (act === 'edit') return go(`#/author/edit/${id}`);
   if (act === 'submit') {
     if (await confirmDialog('送出投稿', '送出後稿件將進入「審查中」，無法再編輯。確定送出？')) {
-      attempt(() => service.submit(uid, id), '已送出投稿');
+      await attempt(() => api.submit(id), '已送出投稿');
     }
   }
   if (act === 'delete') {
     if (await confirmDialog('刪除稿件', '刪除後無法復原，確定刪除？')) {
-      attempt(() => service.delete(uid, id), '稿件已刪除');
+      await attempt(() => api.remove(id), '稿件已刪除');
     }
   }
   router();
@@ -221,19 +228,16 @@ async function authorAction(act, id) {
 
 /* ---------------- 作者：新增 / 編輯投稿 ---------------- */
 
-function renderEditForm(id) {
-  const uid = auth.currentUser.id;
+async function renderEditForm(id) {
   let m = { category_id: '', title: '', content: '' };
   if (id) {
-    try {
-      m = service.getOwned(uid, id);
-      service.assertStatus(m, STATUS.EDITING, '只有「編輯中」的稿件可以編輯');
-    } catch (e) {
-      toast(e.message, true);
+    m = await api.get(id);
+    if (m.status !== STATUS.EDITING) {
+      toast('只有「編輯中」的稿件可以編輯', true);
       return go('#/author');
     }
   }
-  const cats = service.getCategories();
+  const cats = await api.categories();
 
   $app.innerHTML = `
     <div class="page-head">
@@ -272,28 +276,30 @@ function renderEditForm(id) {
     content: document.getElementById('content').value,
   });
 
-  const save = () => {
-    const data = readForm();
+  /** 儲存後回傳稿件 id；失敗回傳 null */
+  const save = async () => {
     try {
-      if (id) { service.update(uid, id, data); return id; }
-      return service.create(uid, data);
+      if (id) { await api.update(id, readForm()); return id; }
+      const res = await api.create(readForm());
+      id = res.id; // 之後再儲存會變成更新，而不是重複新增
+      return id;
     } catch (e) {
-      document.getElementById('form-error').textContent = e.message;
+      if (e.status === 401) handleError(e);
+      else document.getElementById('form-error').textContent = e.message;
       return null;
     }
   };
 
   document.getElementById('cancel').onclick = () => go('#/author');
-  document.getElementById('ms-form').onsubmit = (e) => {
+  document.getElementById('ms-form').onsubmit = async (e) => {
     e.preventDefault();
-    if (save()) { toast('已儲存'); go('#/author'); }
+    if (await save()) { toast('已儲存'); go('#/author'); }
   };
   document.getElementById('save-submit').onclick = async () => {
-    const savedId = save();
+    const savedId = await save();
     if (!savedId) return;
-    id = savedId; // 若為新增，之後再按一次會變成更新而非重複新增
     if (await confirmDialog('送出投稿', '送出後稿件將進入「審查中」，無法再編輯。確定送出？')) {
-      if (attempt(() => service.submit(uid, savedId), '已送出投稿')) go('#/author');
+      if (await attempt(() => api.submit(savedId), '已送出投稿')) go('#/author');
     } else {
       toast('已儲存（尚未送出）');
     }
@@ -302,8 +308,8 @@ function renderEditForm(id) {
 
 /* ---------------- 編輯：待審查清單 ---------------- */
 
-function renderPendingList() {
-  const rows = service.listPending();
+async function renderPendingList() {
+  const rows = await api.pending();
   $app.innerHTML = `
     <div class="page-head">
       <div>
@@ -333,19 +339,9 @@ function renderPendingList() {
 
 /* ---------------- 查看稿件內容 ---------------- */
 
-function renderView(id) {
-  const user = auth.currentUser;
-  let m;
-  try {
-    m = user.role === ROLE.AUTHOR ? service.getOwned(user.id, id) : service.getById(id);
-    if (user.role === ROLE.EDITOR && m.status === STATUS.EDITING) {
-      throw new Error('此稿件尚未送審，編輯無法查看');
-    }
-  } catch (e) {
-    toast(e.message, true);
-    return go(homeOf(user));
-  }
-  const logs = service.getLogs(id);
+async function renderView(id) {
+  const user = currentUser;
+  const m = await api.get(id);
   const back = homeOf(user);
 
   let actions = '';
@@ -374,11 +370,11 @@ function renderView(id) {
       </div>
       <div class="article">${esc(m.content) || '<span class="muted">（無內容）</span>'}</div>
     </article>
-    ${logs.length ? `
+    ${m.logs.length ? `
     <div class="card">
       <h3>審查紀錄</h3>
       <ul class="logs">
-        ${logs.map((l) => `<li>${esc(l.created_at)}　${esc(l.user)}　${esc(l.action)}：${esc(l.from_status)} → ${esc(l.to_status)}</li>`).join('')}
+        ${m.logs.map((l) => `<li>${esc(l.created_at)}　${esc(l.user)}　${esc(l.action)}：${esc(l.from_status)} → ${esc(l.to_status)}</li>`).join('')}
       </ul>
     </div>` : ''}`;
 
@@ -387,18 +383,18 @@ function renderView(id) {
   const bind = (elId, fn) => { const el = document.getElementById(elId); if (el) el.onclick = fn; };
   bind('approve', async () => {
     if (await confirmDialog('通過稿件', `確定讓「${m.title}」通過審查？`)) {
-      if (attempt(() => service.approve(user.id, id), '稿件已通過')) go(back);
+      if (await attempt(() => api.approve(id), '稿件已通過')) go(back);
     }
   });
   bind('reject', async () => {
     if (await confirmDialog('退回稿件', `確定退回「${m.title}」？稿件將回到「編輯中」。`)) {
-      if (attempt(() => service.reject(user.id, id), '稿件已退回')) go(back);
+      if (await attempt(() => api.reject(id), '稿件已退回')) go(back);
     }
   });
   bind('edit', () => go(`#/author/edit/${id}`));
   bind('submit', async () => {
     if (await confirmDialog('送出投稿', '送出後稿件將進入「審查中」，無法再編輯。確定送出？')) {
-      if (attempt(() => service.submit(user.id, id), '已送出投稿')) go(back);
+      if (await attempt(() => api.submit(id), '已送出投稿')) go(back);
     }
   });
 }
@@ -406,19 +402,14 @@ function renderView(id) {
 /* ---------------- 啟動 ---------------- */
 
 (async function main() {
+  document.getElementById('brand').onclick = () =>
+    go(currentUser ? homeOf(currentUser) : '#/login');
+  window.addEventListener('hashchange', router);
   try {
-    const SQL = await initSqlJs();
-    database = new Database(SQL);
-    await database.init();
-    auth = new AuthService(database);
-    service = new ManuscriptService(database);
-    auth.restore();
-    document.getElementById('brand').onclick = () =>
-      go(auth.currentUser ? homeOf(auth.currentUser) : '#/login');
-    window.addEventListener('hashchange', router);
-    router();
+    currentUser = await api.me();
   } catch (e) {
-    console.error(e);
-    $app.innerHTML = `<div class="card error">資料庫載入失敗：${esc(e.message)}</div>`;
+    $app.innerHTML = `<div class="card error">無法連線到伺服器，請確認已執行 npm start。</div>`;
+    return;
   }
+  router();
 })();

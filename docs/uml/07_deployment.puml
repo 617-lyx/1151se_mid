@@ -1,0 +1,19 @@
+@startuml 07_deployment
+skinparam defaultFontName "Noto Sans CJK TC"
+skinparam shadowing false
+skinparam backgroundColor white
+title 投稿審查系統 - 部署圖 (Deployment Diagram)
+node "使用者電腦" {
+  node "瀏覽器" {
+    artifact "index.html\napp.js / api.js\nstyle.css" as FE
+  }
+  node "Node.js" {
+    component "Express 伺服器\n(server.js, port 3000)" as API
+    component "ManuscriptService\nAuthService" as SVC
+  }
+  database "MySQL\n(port 3306)\nmanuscript_review" as DB
+}
+FE --> API : HTTP / JSON\n(REST API)
+API --> SVC
+SVC --> DB : SQL (mysql2)
+@enduml
