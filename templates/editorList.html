@@ -8,6 +8,7 @@
 		<th>作者</th>
 		<th>類別</th>
 		<th>標題</th>
+		<th>文章大綱</th>
 		<th>送審時間</th>
 		<th>操作</th>
 	</tr>
@@ -16,11 +17,12 @@
 		<td>{{ a.nickname }}</td>
 		<td>{{ a.category }}</td>
 		<td>{{ a.title }}</td>
+		<td class="outline-cell">{{ a.outline }}</td>
 		<td class="muted">{{ a.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
 		<td><a class="btn btn-blue" href="/editor/view/{{ a.aid }}">查看內容</a></td>
 	</tr>
 	{% else %}
-	<tr><td colspan="5" class="empty">目前沒有待審查的稿件</td></tr>
+	<tr><td colspan="6" class="empty">目前沒有待審查的稿件</td></tr>
 	{% endfor %}
 </table>
 {% endblock %}

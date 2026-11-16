@@ -23,6 +23,9 @@
 	<label>標題</label>
 	<input type="text" name="title" maxlength="100" value="{{ data.title if data else '' }}" required>
 
+	<label>文章大綱 <span class="muted">（給編輯快速了解文章重點，500 字以內）</span></label>
+	<textarea name="outline" class="short" maxlength="500" required>{{ data.outline if data else '' }}</textarea>
+
 	<label>文章內容</label>
 	<textarea name="content" required>{{ data.content if data else '' }}</textarea>
 

@@ -32,13 +32,16 @@ package "routes" {
     + POST /author/delete/{aid} : delete()
     + POST /author/submit/{aid} : submit()
     + GET  /author/view/{aid} : view()
-    - checkForm(category, title, content)
+    - checkForm(category, title, outline, content)
   }
   class "editor.py" as EditorRouter <<APIRouter>> {
     + GET  /editor/list : reviewList()
+    + GET  /editor/reviewed : reviewedList()
     + GET  /editor/view/{aid} : view()
     + POST /editor/pass/{aid} : approve()
     + POST /editor/reject/{aid} : reject()
+    - review(db, aid, editor, result, newStatus)
+    + getReviews(db, aid)
   }
 }
 
@@ -68,11 +71,11 @@ package "資料表 (PostgreSQL)" {
     + author : varchar(15) <<FK>>
     + category : varchar(20)
     + title : varchar(100)
+    + outline : varchar(500)
     + content : text
     + status : 編輯中 | 審查中 | 已通過
     + updated_at : timestamp
   }
-}
 
 FastAPI_app --> LoginRouter
 FastAPI_app --> AuthorRouter
@@ -87,5 +90,17 @@ AuthorRouter ..> Common
 EditorRouter ..> Common
 DB ..> users : SQL
 DB ..> articles : SQL
+  class reviews <<table>> {
+    + rid : serial <<PK>>
+    + aid : integer <<FK>>
+    + editor : varchar(15) <<FK>>
+    + result : 通過 | 退回
+    + reviewed_at : timestamp
+  }
+}
 users "1" -- "0..*" articles : 撰寫 >
+articles "1" *-- "0..*" reviews : 審查紀錄 >
+users "1" -- "0..*" reviews : 審查 >
+DB ..> reviews : SQL
+AuthorRouter ..> EditorRouter : getReviews()
 @enduml

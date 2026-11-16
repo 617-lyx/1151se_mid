@@ -6,11 +6,12 @@ from fastapi.responses import RedirectResponse
 from db import getDB
 from auth import chkLogin
 from common import templates, CATEGORIES, flash
+from routes.editor import getReviews
 
 router = APIRouter()
 
 
-def checkForm(category: str, title: str, content: str):
+def checkForm(category: str, title: str, outline: str, content: str):
 	"""檢查表單內容，有錯就回傳錯誤訊息，沒錯回傳 None"""
 	if category not in CATEGORIES:
 		return "請選擇正確的類別"
@@ -18,6 +19,10 @@ def checkForm(category: str, title: str, content: str):
 		return "標題不可空白"
 	if len(title) > 100:
 		return "標題不可超過 100 字"
+	if not outline.strip():
+		return "文章大綱不可空白"
+	if len(outline) > 500:
+		return "文章大綱不可超過 500 字"
 	if not content.strip():
 		return "文章內容不可空白"
 	return None
@@ -26,7 +31,12 @@ def checkForm(category: str, title: str, content: str):
 # 1. 查看投稿稿件清單（類別、標題、審查狀態）—— 只看自己的，可依狀態篩選
 @router.get("/list")
 async def myList(request: Request, status: str = "", db=Depends(getDB), user=Depends(chkLogin("author"))):
-	cur = await db.execute("SELECT * FROM articles WHERE author=%s ORDER BY aid;", (user["id"],))
+	# 子查詢：順便取得每篇稿件「最近一次」的審查結果，被退回的稿件可以提醒作者
+	cur = await db.execute("""
+		SELECT a.*,
+		       (SELECT r.result FROM reviews r WHERE r.aid = a.aid
+		        ORDER BY r.reviewed_at DESC, r.rid DESC LIMIT 1) AS last_result
+		FROM articles a WHERE a.author=%s ORDER BY a.aid;""", (user["id"],))
 	allData = await cur.fetchall()
 	data = [a for a in allData if a["status"] == status] if status else allData
 	counts = {s: sum(1 for a in allData if a["status"] == s) for s in ("編輯中", "審查中", "已通過")}
@@ -43,16 +53,16 @@ async def newForm(request: Request, user=Depends(chkLogin("author"))):
 
 # 2-2. 新增投稿：存進資料庫，狀態 = 編輯中
 @router.post("/add")
-async def add(request: Request, category: str = Form(...), title: str = Form(...), content: str = Form(...),
-              db=Depends(getDB), user=Depends(chkLogin("author"))):
-	err = checkForm(category, title, content)
+async def add(request: Request, category: str = Form(...), title: str = Form(...), outline: str = Form(...),
+              content: str = Form(...), db=Depends(getDB), user=Depends(chkLogin("author"))):
+	err = checkForm(category, title, outline, content)
 	if err:
-		data = {"aid": None, "category": category, "title": title, "content": content}
+		data = {"aid": None, "category": category, "title": title, "outline": outline, "content": content}
 		return templates.TemplateResponse(name="articleEdit.html", request=request, status_code=400,
 			context={"data": data, "user": user, "categories": CATEGORIES, "error": err})
 	await db.execute(
-		"INSERT INTO articles (author, category, title, content, status) VALUES (%s, %s, %s, %s, '編輯中');",
-		(user["id"], category, title.strip(), content))
+		"INSERT INTO articles (author, category, title, outline, content, status) VALUES (%s, %s, %s, %s, %s, '編輯中');",
+		(user["id"], category, title.strip(), outline.strip(), content))
 	flash(request, "已新增投稿")
 	return RedirectResponse(url="/author/list", status_code=303)
 
@@ -73,16 +83,16 @@ async def editForm(aid: int, request: Request, db=Depends(getDB), user=Depends(c
 # 2-4. 編輯投稿：更新資料庫
 @router.post("/update")
 async def update(request: Request, aid: int = Form(...), category: str = Form(...), title: str = Form(...),
-                 content: str = Form(...), db=Depends(getDB), user=Depends(chkLogin("author"))):
-	err = checkForm(category, title, content)
+                 outline: str = Form(...), content: str = Form(...), db=Depends(getDB), user=Depends(chkLogin("author"))):
+	err = checkForm(category, title, outline, content)
 	if err:
-		data = {"aid": aid, "category": category, "title": title, "content": content}
+		data = {"aid": aid, "category": category, "title": title, "outline": outline, "content": content}
 		return templates.TemplateResponse(name="articleEdit.html", request=request, status_code=400,
 			context={"data": data, "user": user, "categories": CATEGORIES, "error": err})
 	cur = await db.execute(
-		"UPDATE articles SET category=%s, title=%s, content=%s, updated_at=now() "
+		"UPDATE articles SET category=%s, title=%s, outline=%s, content=%s, updated_at=now() "
 		"WHERE aid=%s AND author=%s AND status='編輯中';",
-		(category, title.strip(), content, aid, user["id"]))
+		(category, title.strip(), outline.strip(), content, aid, user["id"]))
 	if cur.rowcount == 1:  # rowcount = 被更新的筆數，0 代表條件不符
 		flash(request, "已儲存")
 	else:
@@ -126,5 +136,6 @@ async def view(aid: int, request: Request, db=Depends(getDB), user=Depends(chkLo
 	if data is None:
 		flash(request, "找不到此稿件", ok=False)
 		return RedirectResponse(url="/author/list", status_code=302)
+	reviews = await getReviews(db, aid)  # 讓作者看到被通過 / 退回的紀錄
 	return templates.TemplateResponse(name="articleView.html", request=request,
-		context={"data": data, "user": user})
+		context={"data": data, "user": user, "reviews": reviews})

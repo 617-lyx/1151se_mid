@@ -18,9 +18,20 @@ entity articles {
   * author : varchar(15) <<FK → users.id>>
   * category : varchar(20)
   * title : varchar(100)
+  * outline : varchar(500)
   * content : text
   * status : varchar(10) CHECK(編輯中/審查中/已通過)
   * updated_at : timestamp
 }
+entity reviews {
+  * rid : serial <<PK>>
+  --
+  * aid : integer <<FK → articles.aid>>
+  * editor : varchar(15) <<FK → users.id>>
+  * result : varchar(4) CHECK(通過/退回)
+  * reviewed_at : timestamp
+}
 users ||--o{ articles : 撰寫
+articles ||--o{ reviews : 審查紀錄
+users ||--o{ reviews : 審查
 @enduml

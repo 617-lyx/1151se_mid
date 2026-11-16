@@ -16,7 +16,7 @@ API -> API : request.session["user"] = {...}
 API --> BR : 303 → / → /editor/list
 BR -> API : GET /editor/list
 API -> DB : SELECT ... JOIN users WHERE status='審查中'
-API --> BR : editorList.html（作者、類別、標題）
+API --> BR : editorList.html（作者、類別、標題、文章大綱）
 編輯 -> BR : 點「查看內容」
 BR -> API : GET /editor/view/{aid}
 API -> DB : SELECT ... WHERE aid=? AND status='審查中'
@@ -24,11 +24,21 @@ API --> BR : articleView.html
 alt 選擇通過
   編輯 -> BR : 按「選擇通過」
   BR -> API : POST /editor/pass/{aid}
+  API -> DB : BEGIN（交易開始）
   API -> DB : UPDATE articles SET status='已通過'\nWHERE aid=? AND status='審查中'
+  API -> DB : INSERT INTO reviews (aid, editor, '通過')
+  API -> DB : COMMIT
 else 退回稿件
   編輯 -> BR : 按「退回稿件」
   BR -> API : POST /editor/reject/{aid}
+  API -> DB : BEGIN（交易開始）
   API -> DB : UPDATE articles SET status='編輯中'\nWHERE aid=? AND status='審查中'
+  API -> DB : INSERT INTO reviews (aid, editor, '退回')
+  API -> DB : COMMIT
 end
 API --> BR : 303 → /editor/list
+編輯 -> BR : 點「已審查稿件」
+BR -> API : GET /editor/reviewed
+API -> DB : SELECT ... FROM reviews\nJOIN articles JOIN users
+API --> BR : editorReviewed.html（審查結果：通過 / 退回）
 @enduml

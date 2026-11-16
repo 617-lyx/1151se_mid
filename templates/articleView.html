@@ -3,7 +3,7 @@
 {% block title %}{{ data.title }}{% endblock %}
 {% block content %}
 {% if user.role == 'editor' %}
-<p><a class="back" href="/editor/list">← 回待審查清單</a></p>
+<p><a class="back" href="{{ '/editor/list' if data.status == '審查中' else '/editor/reviewed' }}">← {{ '回待審查清單' if data.status == '審查中' else '回已審查稿件' }}</a></p>
 {% else %}
 <p><a class="back" href="/author/list">← 回我的投稿</a></p>
 {% endif %}
@@ -15,7 +15,22 @@
 	<span>狀態：<span class="tag {{ data.status }}">{{ data.status }}</span></span>
 	<span>最後更新：{{ data.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
 </div>
+<div class="outline">
+	<div class="label">文章大綱</div>
+	<div class="text">{{ data.outline or '（未填寫）' }}</div>
+</div>
 <p class="content">{{ data.content }}</p>
+
+{% if reviews %}
+<div class="history">
+	<div class="label">審查紀錄</div>
+	<ul>
+	{% for r in reviews %}
+		<li>{{ r.reviewed_at.strftime('%Y-%m-%d %H:%M') }}　{{ r.editor }}　<span class="tag {{ r.result }}">{{ r.result }}</span></li>
+	{% endfor %}
+	</ul>
+</div>
+{% endif %}
 
 <div class="actions">
 {% if user.role == 'editor' and data.status == '審查中' %}

@@ -25,7 +25,11 @@
 	<tr>
 		<td>{{ a.category }}</td>
 		<td><a href="/author/view/{{ a.aid }}">{{ a.title }}</a></td>
-		<td><span class="tag {{ a.status }}">{{ a.status }}</span></td>
+		<td>
+			<span class="tag {{ a.status }}">{{ a.status }}</span>
+			{# 編輯中、而且最近一次審查是退回 → 提醒作者這篇被退回了 #}
+			{% if a.status == '編輯中' and a.last_result == '退回' %}<span class="tag 退回">被退回</span>{% endif %}
+		</td>
 		<td class="ops">
 		{% if a.status == '編輯中' %}
 			<a class="btn btn-blue" href="/author/edit/{{ a.aid }}">編輯</a>

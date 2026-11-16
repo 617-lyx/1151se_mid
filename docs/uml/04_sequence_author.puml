@@ -15,7 +15,7 @@ BR -> API : GET /author/new
 API -> AUTH : chkLogin("author")
 AUTH --> API : user（從 session 取出）
 API --> BR : articleEdit.html（空白表單）
-作者 -> BR : 填寫類別、標題、內容，按「儲存」
+作者 -> BR : 填寫類別、標題、大綱、內容，按「儲存」
 BR -> API : POST /author/add（表單資料）
 API -> API : checkForm()
 API -> DB : INSERT INTO articles (..., status='編輯中')
