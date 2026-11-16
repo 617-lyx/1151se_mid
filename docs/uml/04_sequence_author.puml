@@ -5,38 +5,31 @@ skinparam backgroundColor white
 title 作者新增並送出投稿 - 循序圖 (Sequence Diagram)
 autonumber
 actor 作者
-participant "前端\n(app.js / api.js)" as FE
-participant "Express\n(server.js)" as API
-participant ManuscriptService as S
-database MySQL as DB
+participant "瀏覽器" as BR
+participant "FastAPI\n(routes/author.py)" as API
+participant "chkLogin\n(auth.py)" as AUTH
+database "PostgreSQL" as DB
 
-作者 -> FE : 點「新增投稿」，填寫類別、標題、內容
-作者 -> FE : 按「儲存」
-FE -> API : POST /api/my/manuscripts
-API -> API : requireRole(author)
-API -> S : create(authorId, data)
-S -> S : validate(data)
-S -> DB : INSERT manuscripts (狀態=編輯中)
-DB --> S : insertId
-S --> API : id
-API --> FE : 201 { id }
-FE --> 作者 : 顯示稿件清單（編輯中）
+作者 -> BR : 點「新增投稿」
+BR -> API : GET /author/new
+API -> AUTH : chkLogin("author")
+AUTH --> API : user（從 session 取出）
+API --> BR : articleEdit.html（空白表單）
+作者 -> BR : 填寫類別、標題、內容，按「儲存」
+BR -> API : POST /author/add（表單資料）
+API -> API : checkForm()
+API -> DB : INSERT INTO articles (..., status='編輯中')
+API --> BR : 303 轉址到 /author/list
+BR -> API : GET /author/list
+API -> DB : SELECT * FROM articles WHERE author=自己
+API --> BR : authorList.html
 
-作者 -> FE : 按「送出投稿」並確認
-FE -> API : POST /api/my/manuscripts/:id/submit
-API -> S : submit(authorId, id)
-S -> DB : 檢查稿件擁有者
-S -> DB : BEGIN
-S -> DB : SELECT ... FOR UPDATE（鎖定稿件）
-alt 狀態 == 編輯中
-  S -> DB : UPDATE status = 審查中
-  S -> DB : INSERT review_logs (送出投稿)
-  S -> DB : COMMIT
-  API --> FE : 200 OK
-  FE --> 作者 : 「已送出投稿」
-else 狀態不符
-  S -> DB : ROLLBACK
-  API --> FE : 409 錯誤訊息
-  FE --> 作者 : 顯示錯誤訊息
+作者 -> BR : 按「送出投稿」並確認
+BR -> API : POST /author/submit/{aid}
+API -> DB : UPDATE articles SET status='審查中'\nWHERE aid=? AND author=自己 AND status='編輯中'
+alt rowcount == 1
+  API --> BR : 303 → 清單，顯示「已送出投稿」
+else rowcount == 0（不是自己的或不是編輯中）
+  API --> BR : 303 → 清單，顯示錯誤訊息
 end
 @enduml

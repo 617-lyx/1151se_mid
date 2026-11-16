@@ -1,0 +1,6 @@
+fastapi[standard]
+psycopg[binary]
+psycopg_pool
+jinja2
+python-multipart
+itsdangerous

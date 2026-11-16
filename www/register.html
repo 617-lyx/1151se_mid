@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<title>註冊</title>
+<link rel="stylesheet" href="/w/style.css">
+</head>
+<body class="center">
+	<div class="box login">
+		<h2>註冊新帳號</h2>
+		<div id="msg"></div>
+		<form method="POST" action="/user/register">
+			<label>帳號（最多 15 字）</label>
+			<input type="text" name="username" maxlength="15" required>
+			<label>密碼</label>
+			<input type="password" name="password" maxlength="30" required>
+			<label>暱稱</label>
+			<input type="text" name="nickname" maxlength="30" required>
+			<label>角色</label>
+			<select name="role">                         <!-- 下拉選單 -->
+				<option value="author">作者</option>      <!-- 畫面顯示「作者」，送出的值是 author -->
+				<option value="editor">編輯</option>
+			</select>
+			<input type="submit" value="註冊">
+		</form>
+		<p><a href="/w/login.html">已有帳號？回登入</a></p>
+	</div>
+	<script>
+		const errors = { dup: "帳號已被使用", role: "角色錯誤", len: "欄位不可空白或過長" };
+		const err = new URLSearchParams(location.search).get("err");
+		if (errors[err]) document.getElementById("msg").innerHTML = '<div class="flash err">' + errors[err] + '</div>';
+	</script>
+</body>
+</html>

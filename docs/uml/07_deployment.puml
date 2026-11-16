@@ -5,15 +5,15 @@ skinparam backgroundColor white
 title 投稿審查系統 - 部署圖 (Deployment Diagram)
 node "使用者電腦" {
   node "瀏覽器" {
-    artifact "index.html\napp.js / api.js\nstyle.css" as FE
+    artifact "HTML 頁面\n(Jinja2 產生 / www 靜態檔)" as FE
   }
-  node "Node.js" {
-    component "Express 伺服器\n(server.js, port 3000)" as API
-    component "ManuscriptService\nAuthService" as SVC
+  node "Python (uvicorn)" {
+    component "FastAPI 伺服器\nmain.py\nport 8000" as API
+    component "routes/\nlogin, author, editor" as R
   }
-  database "MySQL\n(port 3306)\nmanuscript_review" as DB
+  database "PostgreSQL\nport 5432\n資料庫 mydb" as DB
 }
-FE --> API : HTTP / JSON\n(REST API)
-API --> SVC
-SVC --> DB : SQL (mysql2)
+FE --> API : HTTP GET / POST\n(表單送出、頁面請求)
+API --> R
+R --> DB : SQL (psycopg)
 @enduml

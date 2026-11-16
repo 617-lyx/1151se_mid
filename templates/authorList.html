@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}我的投稿{% endblock %}
+{% block content %}
+<div class="head">
+	<h1>我的投稿稿件</h1>
+	<a class="btn btn-blue" href="/author/new">＋ 新增投稿</a>
+</div>
+
+{# 依狀態篩選：網址加 ?status=編輯中 #}
+<div class="filters">
+	<a href="/author/list" class="{{ 'on' if not status }}">全部 ({{ total }})</a>
+	{% for s in ['編輯中', '審查中', '已通過'] %}
+	<a href="/author/list?status={{ s }}" class="{{ 'on' if status == s }}">{{ s }} ({{ counts[s] }})</a>
+	{% endfor %}
+</div>
+
+<table>
+	<tr>
+		<th>類別</th>
+		<th>標題</th>
+		<th>審查狀態</th>
+		<th>操作</th>
+	</tr>
+	{% for a in articles %}
+	<tr>
+		<td>{{ a.category }}</td>
+		<td><a href="/author/view/{{ a.aid }}">{{ a.title }}</a></td>
+		<td><span class="tag {{ a.status }}">{{ a.status }}</span></td>
+		<td class="ops">
+		{% if a.status == '編輯中' %}
+			<a class="btn btn-blue" href="/author/edit/{{ a.aid }}">編輯</a>
+			<form class="inline" method="post" action="/author/submit/{{ a.aid }}"
+				onsubmit="return confirm('確定送出審查？送出後就不能修改')">
+				<input class="btn btn-green" type="submit" value="送出投稿">
+			</form>
+			<form class="inline" method="post" action="/author/delete/{{ a.aid }}"
+				onsubmit="return confirm('確定要刪除嗎？')">
+				<input class="btn btn-red" type="submit" value="刪除">
+			</form>
+		{% else %}
+			<a class="btn btn-gray" href="/author/view/{{ a.aid }}">查看</a>
+		{% endif %}
+		</td>
+	</tr>
+	{% else %}
+	<tr><td colspan="4" class="empty">目前沒有稿件，按右上角新增投稿</td></tr>
+	{% endfor %}
+</table>
+{% endblock %}

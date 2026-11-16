@@ -5,122 +5,87 @@ skinparam backgroundColor white
 title 投稿審查系統 - 類別圖 (Class Diagram)
 skinparam classAttributeIconSize 0
 
-package "前端 (public/js)" {
-  class "app.js (畫面/路由)" as App {
-    - currentUser : User
-    + router()
-    + renderLogin()
-    + renderAuthorList()
-    + renderEditForm(id)
-    + renderPendingList()
-    + renderView(id)
-  }
-  class "api.js" as Api {
-    + login(username, password)
-    + logout()
-    + myList() / create() / update()
-    + remove() / submit()
-    + pending() / approve() / reject()
-    + get(id)
+package "main.py" {
+  class FastAPI_app <<FastAPI>> {
+    + SessionMiddleware
+    + include_router(login, "/user")
+    + include_router(author, "/author")
+    + include_router(editor, "/editor")
+    + mount("/w", StaticFiles("www"))
+    + GET / : home()
+    + httpError(exc)
   }
 }
 
-package "後端 (server)" {
-  class "server.js (Express 路由)" as Server {
-    + POST /api/login
-    + GET  /api/my/manuscripts
-    + POST /api/my/manuscripts
-    + PUT  /api/my/manuscripts/:id
-    + DELETE /api/my/manuscripts/:id
-    + POST /api/my/manuscripts/:id/submit
-    + GET  /api/reviews
-    + POST /api/reviews/:id/approve
-    + POST /api/reviews/:id/reject
-    + GET  /api/manuscripts/:id
-    - requireRole(role)
+package "routes" {
+  class "login.py" as LoginRouter <<APIRouter>> {
+    + POST /user/login : login()
+    + GET  /user/logout : logout()
+    + POST /user/register : register()
   }
-  class AuthService {
-    + login(username, password) : User
+  class "author.py" as AuthorRouter <<APIRouter>> {
+    + GET  /author/list : myList()
+    + GET  /author/new : newForm()
+    + POST /author/add : add()
+    + GET  /author/edit/{aid} : editForm()
+    + POST /author/update : update()
+    + POST /author/delete/{aid} : delete()
+    + POST /author/submit/{aid} : submit()
+    + GET  /author/view/{aid} : view()
+    - checkForm(category, title, content)
   }
-  class ManuscriptService {
-    + getCategories() : Category[]
-    + listByAuthor(authorId) : Manuscript[]
-    + create(authorId, data) : int
-    + update(authorId, id, data)
-    + remove(authorId, id)
-    + submit(authorId, id)
-    + listPending() : Manuscript[]
-    + approve(editorId, id)
-    + reject(editorId, id)
-    + getById(id) : Manuscript
-    + getOwned(authorId, id) : Manuscript
-    + getForUser(user, id) : Manuscript
-    - transition(id, userId, action, from, to)
-    - validate(data)
-  }
-  class HttpError {
-    + status : int
-    + message : string
-  }
-  class "db.js (MySQL 連線池)" as Pool {
-    + query(sql, params)
-    + getConnection()
+  class "editor.py" as EditorRouter <<APIRouter>> {
+    + GET  /editor/list : reviewList()
+    + GET  /editor/view/{aid} : view()
+    + POST /editor/pass/{aid} : approve()
+    + POST /editor/reject/{aid} : reject()
   }
 }
 
-package "資料模型 (MySQL)" {
-  enum Role {
-    author
-    editor
+class "auth.py" as Auth {
+  + chkLogin(role) : checker
+}
+class "db.py" as DB {
+  + DB_URL : str
+  + lifespan(app)
+  + getDB(request) : AsyncConnection
+}
+class "common.py" as Common {
+  + templates : Jinja2Templates
+  + CATEGORIES : list
+  + flash(request, msg, ok)
+}
+
+package "資料表 (PostgreSQL)" {
+  class users <<table>> {
+    + id : varchar(15) <<PK>>
+    + pwd : varchar(30)
+    + nickname : varchar(30)
+    + role : author | editor
   }
-  enum Status {
-    編輯中
-    審查中
-    已通過
-  }
-  class User <<entity>> {
-    - id : int
-    - username : string
-    - password : string
-    - name : string
-    - role : Role
-  }
-  class Category <<entity>> {
-    - id : int
-    - name : string
-  }
-  class Manuscript <<entity>> {
-    - id : int
-    - authorId : int
-    - categoryId : int
-    - title : string
-    - content : string
-    - status : Status
-    - createdAt : datetime
-    - updatedAt : datetime
-  }
-  class ReviewLog <<entity>> {
-    - id : int
-    - manuscriptId : int
-    - userId : int
-    - action : string
-    - fromStatus : Status
-    - toStatus : Status
-    - createdAt : datetime
+  class articles <<table>> {
+    + aid : serial <<PK>>
+    + author : varchar(15) <<FK>>
+    + category : varchar(20)
+    + title : varchar(100)
+    + content : text
+    + status : 編輯中 | 審查中 | 已通過
+    + updated_at : timestamp
   }
 }
 
-App --> Api
-Api ..> Server : HTTP / JSON
-Server --> AuthService
-Server --> ManuscriptService
-AuthService --> Pool
-ManuscriptService --> Pool
-ManuscriptService ..> HttpError : throws
-User "1" -- "0..*" Manuscript : 撰寫 >
-Category "1" -- "0..*" Manuscript : 分類 >
-Manuscript "1" *-- "0..*" ReviewLog : 紀錄 >
-User "1" -- "0..*" ReviewLog : 操作 >
-User ..> Role
-Manuscript ..> Status
+FastAPI_app --> LoginRouter
+FastAPI_app --> AuthorRouter
+FastAPI_app --> EditorRouter
+FastAPI_app ..> DB : lifespan
+AuthorRouter ..> Auth : Depends
+EditorRouter ..> Auth : Depends
+LoginRouter ..> DB : Depends(getDB)
+AuthorRouter ..> DB : Depends(getDB)
+EditorRouter ..> DB : Depends(getDB)
+AuthorRouter ..> Common
+EditorRouter ..> Common
+DB ..> users : SQL
+DB ..> articles : SQL
+users "1" -- "0..*" articles : 撰寫 >
 @enduml

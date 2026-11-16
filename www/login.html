@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<title>登入</title>
+<link rel="stylesheet" href="/w/style.css">
+</head>
+<body class="center">
+	<div class="box login">
+		<h2>投稿審查系統</h2>
+		<div id="msg"></div>
+		<form method="POST" action="/user/login">
+			<label>帳號</label>
+			<input type="text" name="username" required>
+			<label>密碼</label>
+			<input type="password" name="password" required>
+			<input type="submit" value="登入">
+		</form>
+		<p><a href="/w/register.html">還沒有帳號？註冊</a></p>
+		<p class="hint">測試帳號（密碼都是 123）<br>作者：john、mary　編輯：editor</p>
+	</div>
+	<script>
+		// 讀網址上的 ?err=1 或 ?ok=1，顯示對應訊息
+		const q = new URLSearchParams(location.search);
+		const msg = document.getElementById("msg");
+		if (q.get("err")) msg.innerHTML = '<div class="flash err">帳號或密碼錯誤</div>';
+		if (q.get("ok"))  msg.innerHTML = '<div class="flash ok">註冊成功，請登入</div>';
+	</script>
+</body>
+</html>

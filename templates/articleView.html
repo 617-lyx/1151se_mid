@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{# 作者和編輯共用：依角色顯示不同按鈕 #}
+{% block title %}{{ data.title }}{% endblock %}
+{% block content %}
+{% if user.role == 'editor' %}
+<p><a class="back" href="/editor/list">← 回待審查清單</a></p>
+{% else %}
+<p><a class="back" href="/author/list">← 回我的投稿</a></p>
+{% endif %}
+
+<h1>{{ data.title }}</h1>
+<div class="meta">
+	<span>作者：{{ data.nickname }}</span>
+	<span>類別：{{ data.category }}</span>
+	<span>狀態：<span class="tag {{ data.status }}">{{ data.status }}</span></span>
+	<span>最後更新：{{ data.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+</div>
+<p class="content">{{ data.content }}</p>
+
+<div class="actions">
+{% if user.role == 'editor' and data.status == '審查中' %}
+	<form class="inline" method="post" action="/editor/reject/{{ data.aid }}"
+		onsubmit="return confirm('確定退回？稿件會回到「編輯中」')">
+		<input class="btn btn-red" type="submit" value="退回稿件">
+	</form>
+	<form class="inline" method="post" action="/editor/pass/{{ data.aid }}"
+		onsubmit="return confirm('確定讓這篇稿件通過？')">
+		<input class="btn btn-green" type="submit" value="選擇通過">
+	</form>
+{% elif user.role == 'author' and data.status == '編輯中' %}
+	<a class="btn btn-blue" href="/author/edit/{{ data.aid }}">編輯</a>
+	<form class="inline" method="post" action="/author/submit/{{ data.aid }}"
+		onsubmit="return confirm('確定送出審查？送出後就不能修改')">
+		<input class="btn btn-green" type="submit" value="送出投稿">
+	</form>
+{% endif %}
+</div>
+{% endblock %}

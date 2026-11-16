@@ -5,36 +5,30 @@ skinparam backgroundColor white
 title 編輯審查稿件 - 循序圖 (Sequence Diagram)
 autonumber
 actor 編輯
-participant "前端\n(app.js / api.js)" as FE
-participant "Express\n(server.js)" as API
-participant ManuscriptService as S
-database MySQL as DB
+participant "瀏覽器" as BR
+participant "FastAPI\n(routes/login.py\nroutes/editor.py)" as API
+database "PostgreSQL" as DB
 
-編輯 -> FE : 登入
-FE -> API : POST /api/login
-API --> FE : 使用者資料（建立 session）
-FE -> API : GET /api/reviews
-API -> S : listPending()
-S -> DB : SELECT ... WHERE status = 審查中
-API --> FE : 待審查清單
-FE --> 編輯 : 顯示（作者、類別、標題）
-編輯 -> FE : 點「查看稿件」
-FE -> API : GET /api/manuscripts/:id
-API -> S : getForUser(editor, id)
-S -> DB : SELECT 稿件 + 審查紀錄
-API --> FE : 稿件內容
-FE --> 編輯 : 顯示稿件內容
+編輯 -> BR : 輸入帳號密碼
+BR -> API : POST /user/login
+API -> DB : SELECT * FROM users WHERE id=? AND pwd=?
+API -> API : request.session["user"] = {...}
+API --> BR : 303 → / → /editor/list
+BR -> API : GET /editor/list
+API -> DB : SELECT ... JOIN users WHERE status='審查中'
+API --> BR : editorList.html（作者、類別、標題）
+編輯 -> BR : 點「查看內容」
+BR -> API : GET /editor/view/{aid}
+API -> DB : SELECT ... WHERE aid=? AND status='審查中'
+API --> BR : articleView.html
 alt 選擇通過
-  編輯 -> FE : 按「選擇通過」並確認
-  FE -> API : POST /api/reviews/:id/approve
-  API -> S : approve(editorId, id)
-  S -> DB : 交易：UPDATE status = 已通過\n+ INSERT review_logs (通過)
+  編輯 -> BR : 按「選擇通過」
+  BR -> API : POST /editor/pass/{aid}
+  API -> DB : UPDATE articles SET status='已通過'\nWHERE aid=? AND status='審查中'
 else 退回稿件
-  編輯 -> FE : 按「退回稿件」並確認
-  FE -> API : POST /api/reviews/:id/reject
-  API -> S : reject(editorId, id)
-  S -> DB : 交易：UPDATE status = 編輯中\n+ INSERT review_logs (退回)
+  編輯 -> BR : 按「退回稿件」
+  BR -> API : POST /editor/reject/{aid}
+  API -> DB : UPDATE articles SET status='編輯中'\nWHERE aid=? AND status='審查中'
 end
-API --> FE : 200 OK
-FE --> 編輯 : 回到待審查清單
+API --> BR : 303 → /editor/list
 @enduml

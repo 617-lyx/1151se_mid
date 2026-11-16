@@ -4,31 +4,36 @@ skinparam shadowing false
 skinparam backgroundColor white
 left to right direction
 title 投稿審查系統 - 使用案例圖 (Use Case Diagram)
+actor "訪客" as Guest
 actor "作者" as Author
 actor "編輯" as Editor
 rectangle "投稿審查系統" {
-  usecase "登入 / 登出" as UC0
+  usecase "註冊" as R
+  usecase "登入 / 登出" as L
   usecase "查看投稿稿件清單\n(類別、標題、審查狀態)" as UC1
   usecase "新增投稿\n(類別、標題、文章內容)" as UC2
   usecase "編輯投稿" as UC3
   usecase "刪除編輯中稿件" as UC4
   usecase "送出投稿\n編輯中 → 審查中" as UC5
-  usecase "查看待審查清單\n(作者、類別、標題)" as UC6
   usecase "查看稿件內容" as UC7
+  usecase "查看待審查清單\n(作者、類別、標題)" as UC6
   usecase "選擇通過\n審查中 → 已通過" as UC8
   usecase "退回稿件\n審查中 → 編輯中" as UC9
 }
-Author --> UC0
+Guest --> R
+Guest --> L
 Author --> UC1
 Author --> UC2
 Author --> UC3
 Author --> UC4
 Author --> UC5
-UC0 <-- Editor
-UC6 <-- Editor
+Author --> UC7
 UC7 <-- Editor
+UC6 <-- Editor
 UC8 <-- Editor
 UC9 <-- Editor
+Author -up-|> Guest
+Editor -up-|> Guest
 UC8 .> UC7 : <<include>>
 UC9 .> UC7 : <<include>>
 @enduml

@@ -2,45 +2,25 @@
 skinparam defaultFontName "Noto Sans CJK TC"
 skinparam shadowing false
 skinparam backgroundColor white
-title 投稿審查系統 - 資料庫 ER 圖 (MySQL: manuscript_review)
+title 投稿審查系統 - 資料庫 ER 圖 (PostgreSQL: mydb)
 hide circle
 skinparam linetype ortho
 entity users {
-  * id : INT <<PK, AUTO_INCREMENT>>
+  * id : varchar(15) <<PK>>
   --
-  * username : VARCHAR(50) <<UNIQUE>>
-  * password : VARCHAR(100)
-  * name : VARCHAR(50)
-  * role : ENUM('author','editor')
+  * pwd : varchar(30)
+  * nickname : varchar(30)
+  * role : varchar(10) CHECK(author/editor)
 }
-entity categories {
-  * id : INT <<PK, AUTO_INCREMENT>>
+entity articles {
+  * aid : serial <<PK>>
   --
-  * name : VARCHAR(50) <<UNIQUE>>
+  * author : varchar(15) <<FK → users.id>>
+  * category : varchar(20)
+  * title : varchar(100)
+  * content : text
+  * status : varchar(10) CHECK(編輯中/審查中/已通過)
+  * updated_at : timestamp
 }
-entity manuscripts {
-  * id : INT <<PK, AUTO_INCREMENT>>
-  --
-  * author_id : INT <<FK>>
-  * category_id : INT <<FK>>
-  * title : VARCHAR(100)
-  * content : TEXT
-  * status : ENUM('編輯中','審查中','已通過')
-  * created_at : DATETIME
-  * updated_at : DATETIME
-}
-entity review_logs {
-  * id : INT <<PK, AUTO_INCREMENT>>
-  --
-  * manuscript_id : INT <<FK>>
-  * user_id : INT <<FK>>
-  * action : ENUM('送出投稿','通過','退回')
-  * from_status : ENUM
-  * to_status : ENUM
-  * created_at : DATETIME
-}
-users ||--o{ manuscripts : 撰寫
-categories ||--o{ manuscripts : 分類
-manuscripts ||--o{ review_logs : 紀錄
-users ||--o{ review_logs : 操作
+users ||--o{ articles : 撰寫
 @enduml

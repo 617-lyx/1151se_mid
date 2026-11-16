@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}投稿審查系統{% endblock %}</title>
+<link rel="stylesheet" href="/w/style.css">
+</head>
+<body>
+	<div class="box">
+		{% if user %}
+		<div class="top">
+			<span>{{ user.nickname }}<span class="role">{{ '作者' if user.role == 'author' else '編輯' }}</span></span>
+			<a href="/user/logout">登出</a>
+		</div>
+		{% endif %}
+
+		{# 顯示一次性的提示訊息（存在 session 裡，顯示後就刪掉） #}
+		{% set f = request.session.pop('flash', None) %}
+		{% if f %}<div class="flash {{ 'ok' if f.ok else 'err' }}">{{ f.msg }}</div>{% endif %}
+
+		{% block content %}{% endblock %}
+	</div>
+</body>
+</html>
