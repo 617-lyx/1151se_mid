@@ -3,5 +3,6 @@
 {% block content %}
 <h1>{{ code }} {{ '沒有權限' if code == 403 else ('找不到頁面' if code == 404 else '發生錯誤') }}</h1>
 <p>{{ detail }}</p>
+{% if code == 500 %}<p class="muted">常見原因：PostgreSQL 沒啟動、db.py 的密碼不對、還沒執行 review.sql 建立資料表</p>{% endif %}
 <p><a class="btn btn-blue" href="/">回首頁</a></p>
 {% endblock %}

@@ -48,5 +48,13 @@ async def httpError(request: Request, exc: HTTPException):
 		context={"code": exc.status_code, "detail": exc.detail}, status_code=exc.status_code)
 
 
+# 其他沒處理到的錯誤（例如資料庫連不上、資料表不存在）：顯示錯誤原因，方便除錯
+@app.exception_handler(Exception)
+async def serverError(request: Request, exc: Exception):
+	print("❌ 伺服器錯誤：", type(exc).__name__, exc)
+	return templates.TemplateResponse(name="error.html", request=request,
+		context={"code": 500, "detail": f"{type(exc).__name__}：{exc}"}, status_code=500)
+
+
 # 靜態網頁（登入、註冊、CSS）放在 www 資料夾，網址是 /w/檔名
 app.mount("/w", StaticFiles(directory="www"))

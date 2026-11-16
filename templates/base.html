@@ -15,7 +15,7 @@
 		{% endif %}
 
 		{# 顯示一次性的提示訊息（存在 session 裡，顯示後就刪掉） #}
-		{% set f = request.session.pop('flash', None) %}
+		{% set f = request.session.pop('flash', None) if 'session' in request.scope else None %}
 		{% if f %}<div class="flash {{ 'ok' if f.ok else 'err' }}">{{ f.msg }}</div>{% endif %}
 
 		{% block content %}{% endblock %}
